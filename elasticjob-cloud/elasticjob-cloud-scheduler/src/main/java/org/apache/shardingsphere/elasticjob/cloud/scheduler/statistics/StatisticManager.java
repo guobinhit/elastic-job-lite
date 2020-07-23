@@ -17,29 +17,27 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics;
 
-import org.apache.shardingsphere.elasticjob.cloud.api.JobType;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.job.JobRunningStatisticJob;
-import org.apache.shardingsphere.elasticjob.cloud.event.rdb.JobEventRdbConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfigurationService;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobExecutionType;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.job.RegisteredJobStatisticJob;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.job.TaskResultStatisticJob;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.util.StatisticTimeUtils;
-import org.apache.shardingsphere.elasticjob.cloud.statistics.type.job.JobRegisterStatistics;
-import org.apache.shardingsphere.elasticjob.cloud.statistics.type.task.TaskResultStatistics;
-import org.apache.shardingsphere.elasticjob.cloud.reg.base.CoordinatorRegistryCenter;
-import org.apache.shardingsphere.elasticjob.cloud.statistics.StatisticInterval;
-import org.apache.shardingsphere.elasticjob.cloud.statistics.rdb.StatisticRdbRepository;
-import org.apache.shardingsphere.elasticjob.cloud.statistics.type.job.JobExecutionTypeStatistics;
-import org.apache.shardingsphere.elasticjob.cloud.statistics.type.job.JobRunningStatistics;
-import org.apache.shardingsphere.elasticjob.cloud.statistics.type.job.JobTypeStatistics;
-import org.apache.shardingsphere.elasticjob.cloud.statistics.type.task.TaskRunningStatistics;
-import com.google.common.base.Optional;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.shardingsphere.elasticjob.cloud.config.CloudJobExecutionType;
+import org.apache.shardingsphere.elasticjob.cloud.config.pojo.CloudJobConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfigurationService;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.job.JobRunningStatisticJob;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.job.RegisteredJobStatisticJob;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.job.TaskResultStatisticJob;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.util.StatisticTimeUtils;
+import org.apache.shardingsphere.elasticjob.cloud.statistics.StatisticInterval;
+import org.apache.shardingsphere.elasticjob.cloud.statistics.rdb.StatisticRdbRepository;
+import org.apache.shardingsphere.elasticjob.cloud.statistics.type.job.JobExecutionTypeStatistics;
+import org.apache.shardingsphere.elasticjob.cloud.statistics.type.job.JobRegisterStatistics;
+import org.apache.shardingsphere.elasticjob.cloud.statistics.type.job.JobRunningStatistics;
+import org.apache.shardingsphere.elasticjob.cloud.statistics.type.task.TaskResultStatistics;
+import org.apache.shardingsphere.elasticjob.cloud.statistics.type.task.TaskRunningStatistics;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
+import org.apache.shardingsphere.elasticjob.tracing.api.TracingConfiguration;
 
+import javax.sql.DataSource;
 import java.sql.SQLException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -48,6 +46,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 /**
  * Statistic manager.
@@ -62,7 +61,7 @@ public final class StatisticManager {
     
     private final CloudJobConfigurationService configurationService;
     
-    private final Optional<JobEventRdbConfiguration> jobEventRdbConfiguration;
+    private final TracingConfiguration tracingConfiguration;
     
     private final StatisticsScheduler scheduler;
     
@@ -70,11 +69,11 @@ public final class StatisticManager {
     
     private StatisticRdbRepository rdbRepository;
     
-    private StatisticManager(final CoordinatorRegistryCenter registryCenter, final Optional<JobEventRdbConfiguration> jobEventRdbConfiguration,
+    private StatisticManager(final CoordinatorRegistryCenter registryCenter, final TracingConfiguration tracingConfiguration,
                              final StatisticsScheduler scheduler, final Map<StatisticInterval, TaskResultMetaData> statisticData) {
         this.registryCenter = registryCenter;
         this.configurationService = new CloudJobConfigurationService(registryCenter);
-        this.jobEventRdbConfiguration = jobEventRdbConfiguration;
+        this.tracingConfiguration = tracingConfiguration;
         this.scheduler = scheduler;
         this.statisticData = statisticData;
     }
@@ -83,10 +82,10 @@ public final class StatisticManager {
      * Get statistic manager.
      * 
      * @param regCenter registry center
-     * @param jobEventRdbConfiguration rdb configuration
+     * @param tracingConfiguration tracing configuration
      * @return statistic manager
      */
-    public static StatisticManager getInstance(final CoordinatorRegistryCenter regCenter, final Optional<JobEventRdbConfiguration> jobEventRdbConfiguration) {
+    public static StatisticManager getInstance(final CoordinatorRegistryCenter regCenter, final TracingConfiguration tracingConfiguration) {
         if (null == instance) {
             synchronized (StatisticManager.class) {
                 if (null == instance) {
@@ -94,7 +93,7 @@ public final class StatisticManager {
                     statisticData.put(StatisticInterval.MINUTE, new TaskResultMetaData());
                     statisticData.put(StatisticInterval.HOUR, new TaskResultMetaData());
                     statisticData.put(StatisticInterval.DAY, new TaskResultMetaData());
-                    instance = new StatisticManager(regCenter, jobEventRdbConfiguration, new StatisticsScheduler(), statisticData);
+                    instance = new StatisticManager(regCenter, tracingConfiguration, new StatisticsScheduler(), statisticData);
                     init();
                 }
             }
@@ -103,9 +102,9 @@ public final class StatisticManager {
     }
     
     private static void init() {
-        if (instance.jobEventRdbConfiguration.isPresent()) {
+        if (null != instance.tracingConfiguration) {
             try {
-                instance.rdbRepository = new StatisticRdbRepository(instance.jobEventRdbConfiguration.get().getDataSource());
+                instance.rdbRepository = new StatisticRdbRepository((DataSource) instance.tracingConfiguration.getStorage());
             } catch (final SQLException ex) {
                 log.error("Init StatisticRdbRepository error:", ex);
             }
@@ -206,27 +205,6 @@ public final class StatisticManager {
     }
     
     /**
-     * Get job type statistics.
-     * 
-     * @return job type statistics
-     */
-    public JobTypeStatistics getJobTypeStatistics() {
-        int scriptJobCnt = 0;
-        int simpleJobCnt = 0;
-        int dataflowJobCnt = 0;
-        for (CloudJobConfiguration each : configurationService.loadAll()) {
-            if (JobType.SCRIPT.equals(each.getTypeConfig().getJobType())) {
-                scriptJobCnt++;
-            } else if (JobType.SIMPLE.equals(each.getTypeConfig().getJobType())) {
-                simpleJobCnt++;
-            } else if (JobType.DATAFLOW.equals(each.getTypeConfig().getJobType())) {
-                dataflowJobCnt++;
-            }
-        }
-        return new JobTypeStatistics(scriptJobCnt, simpleJobCnt, dataflowJobCnt);
-    }
-    
-    /**
      * Get job execution type statistics.
      * 
      * @return Job execution type statistics data object
@@ -234,7 +212,7 @@ public final class StatisticManager {
     public JobExecutionTypeStatistics getJobExecutionTypeStatistics() {
         int transientJobCnt = 0;
         int daemonJobCnt = 0;
-        for (CloudJobConfiguration each : configurationService.loadAll()) {
+        for (CloudJobConfigurationPOJO each : configurationService.loadAll()) {
             if (CloudJobExecutionType.TRANSIENT.equals(each.getJobExecutionType())) {
                 transientJobCnt++;
             } else if (CloudJobExecutionType.DAEMON.equals(each.getJobExecutionType())) {

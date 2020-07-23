@@ -17,19 +17,19 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.env;
 
-import org.apache.shardingsphere.elasticjob.cloud.event.rdb.JobEventRdbConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.reg.zookeeper.ZookeeperConfiguration;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.dbcp.BasicDataSource;
-
-import java.io.FileInputStream;
+import org.apache.shardingsphere.elasticjob.reg.zookeeper.ZookeeperConfiguration;
+import org.apache.shardingsphere.elasticjob.tracing.api.TracingConfiguration;
+import javax.sql.DataSource;
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.HashMap;
+import java.util.Optional;
 import java.util.Properties;
 
 /**
@@ -39,7 +39,7 @@ import java.util.Properties;
 public final class BootstrapEnvironment {
     
     @Getter
-    private static BootstrapEnvironment instance = new BootstrapEnvironment();
+    private static final BootstrapEnvironment INSTANCE = new BootstrapEnvironment();
     
     private static final String PROPERTIES_PATH = "conf/elasticjob-cloud-scheduler.properties";
     
@@ -51,7 +51,7 @@ public final class BootstrapEnvironment {
     
     private Properties getProperties() {
         Properties result = new Properties();
-        try (FileInputStream fileInputStream = new FileInputStream(PROPERTIES_PATH)) {
+        try (InputStream fileInputStream = BootstrapEnvironment.class.getClassLoader().getResourceAsStream(PROPERTIES_PATH)) {
             result.load(fileInputStream);
         } catch (final IOException ex) {
             log.warn("Can not load properties file from path: '{}'.", PROPERTIES_PATH);
@@ -91,7 +91,7 @@ public final class BootstrapEnvironment {
     
     /**
      * Get zookeeper config.
-     * 
+     *
      * @return zookeeper config
      */
     // TODO Other zkConfig values ​​are configurable
@@ -123,11 +123,11 @@ public final class BootstrapEnvironment {
     }
     
     /**
-     * Get the job event rdb config.
+     * Get tracing configuration.
      *
-     * @return job event rdb config
+     * @return tracing configuration
      */
-    public Optional<JobEventRdbConfiguration> getJobEventRdbConfiguration() {
+    public Optional<TracingConfiguration> getTracingConfiguration() {
         String driver = getValue(EnvironmentArgument.EVENT_TRACE_RDB_DRIVER);
         String url = getValue(EnvironmentArgument.EVENT_TRACE_RDB_URL);
         String username = getValue(EnvironmentArgument.EVENT_TRACE_RDB_USERNAME);
@@ -138,9 +138,9 @@ public final class BootstrapEnvironment {
             dataSource.setUrl(url);
             dataSource.setUsername(username);
             dataSource.setPassword(password);
-            return Optional.of(new JobEventRdbConfiguration(dataSource));
+            return Optional.of(new TracingConfiguration<DataSource>("RDB", dataSource));
         }
-        return Optional.absent();
+        return Optional.empty();
     }
     
     /**
@@ -167,7 +167,7 @@ public final class BootstrapEnvironment {
     public Optional<String> getMesosRole() {
         String role = getValue(EnvironmentArgument.MESOS_ROLE);
         if (Strings.isNullOrEmpty(role)) {
-            return Optional.absent();
+            return Optional.empty();
         }
         return Optional.of(role);
     }

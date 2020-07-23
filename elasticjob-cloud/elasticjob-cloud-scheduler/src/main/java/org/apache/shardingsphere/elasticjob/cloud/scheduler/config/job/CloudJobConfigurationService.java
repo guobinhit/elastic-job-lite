@@ -17,14 +17,17 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job;
 
-import com.google.common.base.Optional;
-import org.apache.shardingsphere.elasticjob.cloud.reg.base.CoordinatorRegistryCenter;
+import com.google.common.base.Strings;
 import lombok.RequiredArgsConstructor;
+import org.apache.shardingsphere.elasticjob.cloud.config.pojo.CloudJobConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.infra.yaml.YamlEngine;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Cloud job configuration service.
@@ -37,19 +40,21 @@ public final class CloudJobConfigurationService {
     /**
      * Add cloud job configuration.
      * 
-     * @param jobConfig cloud job configuration
+     * @param cloudJobConfig cloud job configuration
      */
-    public void add(final CloudJobConfiguration jobConfig) {
-        regCenter.persist(CloudJobConfigurationNode.getRootNodePath(jobConfig.getJobName()), CloudJobConfigurationGsonFactory.toJson(jobConfig));
+    public void add(final CloudJobConfigurationPOJO cloudJobConfig) {
+        regCenter.persist(
+                CloudJobConfigurationNode.getRootNodePath(cloudJobConfig.getJobName()), YamlEngine.marshal(cloudJobConfig));
     }
     
     /**
      * Update cloud job configuration.
      *
-     * @param jobConfig cloud job configuration
+     * @param cloudJobConfig cloud job configuration
      */
-    public void update(final CloudJobConfiguration jobConfig) {
-        regCenter.update(CloudJobConfigurationNode.getRootNodePath(jobConfig.getJobName()), CloudJobConfigurationGsonFactory.toJson(jobConfig));
+    public void update(final CloudJobConfigurationPOJO cloudJobConfig) {
+        regCenter.update(
+                CloudJobConfigurationNode.getRootNodePath(cloudJobConfig.getJobName()), YamlEngine.marshal(cloudJobConfig));
     }
     
     /**
@@ -57,17 +62,14 @@ public final class CloudJobConfigurationService {
      *
      * @return collection of the registered cloud job configuration
      */
-    public Collection<CloudJobConfiguration> loadAll() {
+    public Collection<CloudJobConfigurationPOJO> loadAll() {
         if (!regCenter.isExisted(CloudJobConfigurationNode.ROOT)) {
             return Collections.emptyList();
         }
         List<String> jobNames = regCenter.getChildrenKeys(CloudJobConfigurationNode.ROOT);
-        Collection<CloudJobConfiguration> result = new ArrayList<>(jobNames.size());
+        Collection<CloudJobConfigurationPOJO> result = new ArrayList<>(jobNames.size());
         for (String each : jobNames) {
-            Optional<CloudJobConfiguration> config = load(each);
-            if (config.isPresent()) {
-                result.add(config.get());
-            }
+            load(each).ifPresent(result::add);
         }
         return result;
     }
@@ -78,8 +80,9 @@ public final class CloudJobConfigurationService {
      * @param jobName job name
      * @return cloud job configuration
      */
-    public Optional<CloudJobConfiguration> load(final String jobName) {
-        return Optional.fromNullable(CloudJobConfigurationGsonFactory.fromJson(regCenter.get(CloudJobConfigurationNode.getRootNodePath(jobName))));
+    public Optional<CloudJobConfigurationPOJO> load(final String jobName) {
+        String configContent = regCenter.get(CloudJobConfigurationNode.getRootNodePath(jobName));
+        return Strings.isNullOrEmpty(configContent) ? Optional.empty() : Optional.of(YamlEngine.unmarshal(configContent, CloudJobConfigurationPOJO.class));
     }
     
     /**

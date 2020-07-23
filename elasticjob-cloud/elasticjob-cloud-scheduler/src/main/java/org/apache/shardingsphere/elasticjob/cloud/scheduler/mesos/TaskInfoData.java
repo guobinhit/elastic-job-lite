@@ -17,14 +17,12 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.mesos;
 
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobExecutionType;
-import org.apache.shardingsphere.elasticjob.cloud.config.script.ScriptJobConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.executor.ShardingContexts;
-import org.apache.shardingsphere.elasticjob.cloud.config.dataflow.DataflowJobConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.executor.handler.JobProperties;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.shardingsphere.elasticjob.api.listener.ShardingContexts;
+import org.apache.shardingsphere.elasticjob.cloud.config.CloudJobConfiguration;
+import org.apache.shardingsphere.elasticjob.infra.pojo.JobConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.infra.yaml.YamlEngine;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -37,7 +35,7 @@ public final class TaskInfoData {
     
     private final ShardingContexts shardingContexts;
     
-    private final CloudJobConfiguration jobConfig;
+    private final CloudJobConfiguration cloudJobConfig;
     
     /**
      * Serialize.
@@ -47,25 +45,7 @@ public final class TaskInfoData {
     public byte[] serialize() {
         Map<String, Object> result = new LinkedHashMap<>(2, 1);
         result.put("shardingContext", shardingContexts);
-        result.put("jobConfigContext", buildJobConfigurationContext());
+        result.put("jobConfigContext", YamlEngine.marshal(JobConfigurationPOJO.fromJobConfiguration(cloudJobConfig.getJobConfig())));
         return SerializationUtils.serialize((LinkedHashMap) result);
-    }
-    
-    private Map<String, String> buildJobConfigurationContext() {
-        Map<String, String> result = new LinkedHashMap<>(16, 1);
-        result.put("jobType", jobConfig.getTypeConfig().getJobType().name());
-        result.put("jobName", jobConfig.getJobName());
-        result.put("jobClass", jobConfig.getTypeConfig().getJobClass());
-        result.put("cron", CloudJobExecutionType.DAEMON == jobConfig.getJobExecutionType() ? jobConfig.getTypeConfig().getCoreConfig().getCron() : "");
-        result.put("jobExceptionHandler", jobConfig.getTypeConfig().getCoreConfig().getJobProperties().get(JobProperties.JobPropertiesEnum.JOB_EXCEPTION_HANDLER));
-        result.put("executorServiceHandler", jobConfig.getTypeConfig().getCoreConfig().getJobProperties().get(JobProperties.JobPropertiesEnum.EXECUTOR_SERVICE_HANDLER));
-        if (jobConfig.getTypeConfig() instanceof DataflowJobConfiguration) {
-            result.put("streamingProcess", Boolean.toString(((DataflowJobConfiguration) jobConfig.getTypeConfig()).isStreamingProcess()));
-        } else if (jobConfig.getTypeConfig() instanceof ScriptJobConfiguration) {
-            result.put("scriptCommandLine", ((ScriptJobConfiguration) jobConfig.getTypeConfig()).getScriptCommandLine());
-        }
-        result.put("beanName", jobConfig.getBeanName());
-        result.put("applicationContext", jobConfig.getApplicationContext());
-        return result;
     }
 }

@@ -17,10 +17,9 @@
 
 package org.apache.shardingsphere.elasticjob.lite.internal.util;
 
-import com.google.common.base.Joiner;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.apache.shardingsphere.elasticjob.lite.util.env.IpUtils;
+import org.apache.shardingsphere.elasticjob.infra.env.IpUtils;
 
 import java.util.HashMap;
 import java.util.List;
@@ -58,7 +57,7 @@ public final class SensitiveInfoUtils {
                 if (fakeIpMap.containsKey(realIp)) {
                     fakeIp = fakeIpMap.get(realIp);
                 } else {
-                    fakeIp = Joiner.on("").join(FAKE_IP_SAMPLE, step.incrementAndGet());
+                    fakeIp = FAKE_IP_SAMPLE + step.incrementAndGet();
                     fakeIpMap.put(realIp, fakeIp);
                 }
                 result = result.replace(realIp, fakeIp);

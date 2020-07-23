@@ -17,7 +17,7 @@
 
 package org.apache.shardingsphere.elasticjob.lite.internal.server;
 
-import org.apache.shardingsphere.elasticjob.lite.handler.sharding.JobInstance;
+import org.apache.shardingsphere.elasticjob.infra.handler.sharding.JobInstance;
 import org.apache.shardingsphere.elasticjob.lite.internal.schedule.JobRegistry;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -29,7 +29,7 @@ import static org.junit.Assert.assertTrue;
 
 public final class ServerNodeTest {
     
-    private ServerNode serverNode = new ServerNode("test_job");
+    private final ServerNode serverNode = new ServerNode("test_job");
     
     @BeforeClass
     public static void setUp() {

@@ -17,12 +17,11 @@
 
 package org.apache.shardingsphere.elasticjob.lite.internal.snapshot;
 
-import com.google.common.base.Joiner;
-import org.apache.shardingsphere.elasticjob.lite.internal.util.SensitiveInfoUtils;
-import org.apache.shardingsphere.elasticjob.lite.reg.base.CoordinatorRegistryCenter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.recipes.cache.ChildData;
-import org.apache.curator.framework.recipes.cache.TreeCache;
+import org.apache.curator.framework.recipes.cache.CuratorCache;
+import org.apache.shardingsphere.elasticjob.lite.internal.util.SensitiveInfoUtils;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -33,6 +32,7 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Snapshot service.
@@ -60,7 +60,8 @@ public final class SnapshotService {
      */
     public void listen() {
         if (port < 0) {
-            return;
+            log.error("Elastic job: Snapshot service port must greater than 0, the port is '{}'", port);
+            throw new RuntimeException("config Snapshot service port must greater than 0.");
         }
         try {
             log.info("Elastic job: Snapshot service is running, the port is '{}'", port);
@@ -100,7 +101,7 @@ public final class SnapshotService {
                 List<String> result = new ArrayList<>();
                 String jobName = cmdLine.split("@")[1];
                 dumpDirectly("/" + jobName, jobName, result);
-                outputMessage(writer, Joiner.on("\n").join(SensitiveInfoUtils.filterSensitiveIps(result)) + "\n");
+                outputMessage(writer, String.join("\n", SensitiveInfoUtils.filterSensitiveIps(result)) + "\n");
             }
         }
     }
@@ -112,14 +113,14 @@ public final class SnapshotService {
             if (null == zkValue) {
                 zkValue = "";
             }
-            TreeCache treeCache = (TreeCache) regCenter.getRawCache("/" + jobName);
-            ChildData treeCacheData = treeCache.getCurrentData(zkPath);
-            String treeCachePath = null == treeCacheData ? "" : treeCacheData.getPath();
-            String treeCacheValue = null == treeCacheData ? "" : new String(treeCacheData.getData());
-            if (zkValue.equals(treeCacheValue) && zkPath.equals(treeCachePath)) {
-                result.add(Joiner.on(" | ").join(zkPath, zkValue));
+            CuratorCache cache = (CuratorCache) regCenter.getRawCache("/" + jobName);
+            Optional<ChildData> cacheData = cache.get(zkPath);
+            String cachePath = cacheData.map(ChildData::getPath).orElse("");
+            String cacheValue = cacheData.map(childData -> new String(childData.getData())).orElse("");
+            if (zkValue.equals(cacheValue) && zkPath.equals(cachePath)) {
+                result.add(String.join(" | ", zkPath, zkValue));
             } else {
-                result.add(Joiner.on(" | ").join(zkPath, zkValue, treeCachePath, treeCacheValue));
+                result.add(String.join(" | ", zkPath, zkValue, cachePath, cacheValue));
             }
             dumpDirectly(zkPath, jobName, result);
         }
@@ -139,7 +140,7 @@ public final class SnapshotService {
             try {
                 serverSocket.close();
             } catch (final IOException ex) {
-                log.error("Elastic job: Snapshot service close failure, error is: ", ex);
+                log.error("ElasticJob: Snapshot service close failure, error is: ", ex);
             }
         }
     }

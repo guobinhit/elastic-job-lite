@@ -17,12 +17,11 @@
 
 package org.apache.shardingsphere.elasticjob.lite.internal.instance;
 
-import org.apache.curator.framework.recipes.cache.TreeCacheEvent.Type;
 import org.apache.shardingsphere.elasticjob.lite.internal.listener.AbstractJobListener;
 import org.apache.shardingsphere.elasticjob.lite.internal.listener.AbstractListenerManager;
 import org.apache.shardingsphere.elasticjob.lite.internal.schedule.JobRegistry;
 import org.apache.shardingsphere.elasticjob.lite.internal.schedule.SchedulerFacade;
-import org.apache.shardingsphere.elasticjob.lite.reg.base.CoordinatorRegistryCenter;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
 
 /**
  * Job instance shutdown listener manager.
@@ -61,7 +60,7 @@ public final class ShutdownListenerManager extends AbstractListenerManager {
         }
         
         private boolean isRemoveInstance(final String path, final Type eventType) {
-            return instanceNode.isLocalInstancePath(path) && Type.NODE_REMOVED == eventType;
+            return instanceNode.isLocalInstancePath(path) && Type.NODE_DELETED == eventType;
         }
         
         private boolean isReconnectedRegistryCenter() {

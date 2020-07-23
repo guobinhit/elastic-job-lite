@@ -17,11 +17,11 @@
 
 package org.apache.shardingsphere.elasticjob.lite.integrate.disable;
 
-import org.apache.shardingsphere.elasticjob.lite.api.job.JobConfiguration;
+import org.apache.shardingsphere.elasticjob.api.JobConfiguration;
 import org.apache.shardingsphere.elasticjob.lite.fixture.job.DetailedFooJob;
 import org.apache.shardingsphere.elasticjob.lite.internal.schedule.JobRegistry;
 import org.apache.shardingsphere.elasticjob.lite.internal.server.ServerStatus;
-import org.apache.shardingsphere.elasticjob.lite.util.concurrent.BlockUtils;
+import org.apache.shardingsphere.elasticjob.infra.concurrent.BlockUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
@@ -49,12 +49,12 @@ public final class ScheduleDisabledJobIntegrateTest extends DisabledJobIntegrate
     }
     
     private void setJobEnable() {
-        getRegCenter().persist("/" + getJobName() + "/servers/" + JobRegistry.getInstance().getJobInstance(getJobName()).getIp(), ServerStatus.ENABLED.name());
+        getREGISTRY_CENTER().persist("/" + getJobName() + "/servers/" + JobRegistry.getInstance().getJobInstance(getJobName()).getIp(), ServerStatus.ENABLED.name());
     }
     
     private void assertEnabledRegCenterInfo() {
-        assertTrue(getRegCenter().isExisted("/" + getJobName() + "/instances/" + JobRegistry.getInstance().getJobInstance(getJobName()).getJobInstanceId()));
-        getRegCenter().remove("/" + getJobName() + "/leader/election");
-        assertTrue(getRegCenter().isExisted("/" + getJobName() + "/sharding"));
+        assertTrue(getREGISTRY_CENTER().isExisted("/" + getJobName() + "/instances/" + JobRegistry.getInstance().getJobInstance(getJobName()).getJobInstanceId()));
+        getREGISTRY_CENTER().remove("/" + getJobName() + "/leader/election");
+        assertTrue(getREGISTRY_CENTER().isExisted("/" + getJobName() + "/sharding"));
     }
 }

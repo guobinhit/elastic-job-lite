@@ -17,26 +17,26 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.mesos;
 
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app.CloudAppConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.context.TaskContext;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.gson.JsonParseException;
 import com.netflix.fenzo.ConstraintEvaluator;
 import com.netflix.fenzo.TaskAssignmentResult;
 import com.netflix.fenzo.TaskRequest;
 import com.netflix.fenzo.TaskTrackerState;
 import com.netflix.fenzo.VirtualMachineCurrentState;
-import com.sun.jersey.api.client.ClientHandlerException;
-import com.sun.jersey.api.client.UniformInterfaceException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.codehaus.jettison.json.JSONException;
+import org.apache.shardingsphere.elasticjob.cloud.config.CloudJobConfiguration;
+import org.apache.shardingsphere.elasticjob.cloud.config.pojo.CloudJobConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app.pojo.CloudAppConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.mesos.MesosStateService.ExecutorStateInfo;
+import org.apache.shardingsphere.elasticjob.infra.context.TaskContext;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -54,7 +54,7 @@ public final class AppConstraintEvaluator implements ConstraintEvaluator {
     
     /**
      * Init.
-     * 
+     *
      * @param facadeService Mesos facade service
      */
     public static void init(final FacadeService facadeService) {
@@ -62,16 +62,15 @@ public final class AppConstraintEvaluator implements ConstraintEvaluator {
     }
     
     static AppConstraintEvaluator getInstance() {
-        Preconditions.checkNotNull(instance);
-        return instance;
+        return Preconditions.checkNotNull(instance);
     }
     
     void loadAppRunningState() {
         try {
-            for (MesosStateService.ExecutorStateInfo each : facadeService.loadExecutorInfo()) {
+            for (ExecutorStateInfo each : facadeService.loadExecutorInfo()) {
                 runningApps.add(each.getId());
             }
-        } catch (final JSONException | UniformInterfaceException | ClientHandlerException e) {
+        } catch (final JsonParseException e) {
             clearAppRunningState();
         }
     }
@@ -106,7 +105,7 @@ public final class AppConstraintEvaluator implements ConstraintEvaluator {
                 if (isAppRunningOnSlave(each.getId(), slaveId)) {
                     continue;
                 }
-                CloudAppConfiguration assigningAppConfig = getAppConfiguration(each.getId());
+                CloudAppConfigurationPOJO assigningAppConfig = getAppConfiguration(each.getId());
                 if (!calculatedApps.add(assigningAppConfig.getAppName())) {
                     continue;
                 }
@@ -137,24 +136,24 @@ public final class AppConstraintEvaluator implements ConstraintEvaluator {
         return runningApps.contains(taskContext.getExecutorId(getJobConfiguration(taskContext).getAppName()));
     }
     
-    private CloudAppConfiguration getAppConfiguration(final String taskId) throws LackConfigException {
-        CloudJobConfiguration jobConfig = getJobConfiguration(TaskContext.from(taskId));
-        Optional<CloudAppConfiguration> appConfigOptional = facadeService.loadAppConfig(jobConfig.getAppName());
+    private CloudAppConfigurationPOJO getAppConfiguration(final String taskId) throws LackConfigException {
+        CloudJobConfiguration cloudJobConfig = getJobConfiguration(TaskContext.from(taskId));
+        Optional<CloudAppConfigurationPOJO> appConfigOptional = facadeService.loadAppConfig(cloudJobConfig.getAppName());
         if (!appConfigOptional.isPresent()) {
-            throw new LackConfigException("APP", jobConfig.getAppName());
+            throw new LackConfigException("APP", cloudJobConfig.getAppName());
         }
         return appConfigOptional.get();
     }
     
     private CloudJobConfiguration getJobConfiguration(final TaskContext taskContext) throws LackConfigException {
-        Optional<CloudJobConfiguration> jobConfigOptional = facadeService.load(taskContext.getMetaInfo().getJobName());
-        if (!jobConfigOptional.isPresent()) {
+        Optional<CloudJobConfigurationPOJO> cloudJobConfig = facadeService.load(taskContext.getMetaInfo().getJobName());
+        if (!cloudJobConfig.isPresent()) {
             throw new LackConfigException("JOB", taskContext.getMetaInfo().getJobName());
         }
-        return jobConfigOptional.get();
+        return cloudJobConfig.get().toCloudJobConfiguration();
     }
     
-    private class LackConfigException extends Exception {
+    private static class LackConfigException extends Exception {
         
         LackConfigException(final String scope, final String configName) {
             super(String.format("Lack %s's config %s", scope, configName));

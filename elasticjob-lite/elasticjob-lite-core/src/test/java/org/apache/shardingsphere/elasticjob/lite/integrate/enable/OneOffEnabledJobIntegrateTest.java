@@ -17,9 +17,9 @@
 
 package org.apache.shardingsphere.elasticjob.lite.integrate.enable;
 
-import org.apache.shardingsphere.elasticjob.lite.api.job.JobConfiguration;
+import org.apache.shardingsphere.elasticjob.api.JobConfiguration;
 import org.apache.shardingsphere.elasticjob.lite.fixture.job.DetailedFooJob;
-import org.apache.shardingsphere.elasticjob.lite.util.concurrent.BlockUtils;
+import org.apache.shardingsphere.elasticjob.infra.concurrent.BlockUtils;
 import org.junit.Test;
 
 import static org.junit.Assert.assertTrue;
@@ -40,6 +40,6 @@ public final class OneOffEnabledJobIntegrateTest extends EnabledJobIntegrateTest
         while (!((DetailedFooJob) getElasticJob()).isCompleted()) {
             BlockUtils.waitingShortTime();
         }
-        assertTrue(getRegCenter().isExisted("/" + getJobName() + "/sharding"));
+        assertTrue(getREGISTRY_CENTER().isExisted("/" + getJobName() + "/sharding"));
     }
 }

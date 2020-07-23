@@ -19,11 +19,10 @@ package org.apache.shardingsphere.elasticjob.lite.internal.reconcile;
 
 import com.google.common.util.concurrent.AbstractScheduledService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.shardingsphere.elasticjob.lite.api.job.JobConfiguration;
 import org.apache.shardingsphere.elasticjob.lite.internal.config.ConfigurationService;
 import org.apache.shardingsphere.elasticjob.lite.internal.election.LeaderService;
 import org.apache.shardingsphere.elasticjob.lite.internal.sharding.ShardingService;
-import org.apache.shardingsphere.elasticjob.lite.reg.base.CoordinatorRegistryCenter;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
 
 import java.util.concurrent.TimeUnit;
 
@@ -50,8 +49,7 @@ public final class ReconcileService extends AbstractScheduledService {
     
     @Override
     protected void runOneIteration() {
-        JobConfiguration config = configService.load(true);
-        int reconcileIntervalMinutes = null == config ? -1 : config.getReconcileIntervalMinutes();
+        int reconcileIntervalMinutes = configService.load(true).getReconcileIntervalMinutes();
         if (reconcileIntervalMinutes > 0 && (System.currentTimeMillis() - lastReconcileTime >= reconcileIntervalMinutes * 60 * 1000)) {
             lastReconcileTime = System.currentTimeMillis();
             if (leaderService.isLeaderUntilBlock() && !shardingService.isNeedSharding() && shardingService.hasShardingInfoInOfflineServers()) {

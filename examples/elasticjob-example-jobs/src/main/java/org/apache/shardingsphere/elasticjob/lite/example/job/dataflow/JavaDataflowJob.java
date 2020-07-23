@@ -17,8 +17,8 @@
 
 package org.apache.shardingsphere.elasticjob.lite.example.job.dataflow;
 
-import org.apache.shardingsphere.elasticjob.lite.api.job.ShardingContext;
-import org.apache.shardingsphere.elasticjob.lite.dataflow.job.DataflowJob;
+import org.apache.shardingsphere.elasticjob.api.ShardingContext;
+import org.apache.shardingsphere.elasticjob.dataflow.job.DataflowJob;
 import org.apache.shardingsphere.elasticjob.lite.example.fixture.entity.Foo;
 import org.apache.shardingsphere.elasticjob.lite.example.fixture.repository.FooRepository;
 import org.apache.shardingsphere.elasticjob.lite.example.fixture.repository.FooRepositoryFactory;
@@ -29,7 +29,7 @@ import java.util.List;
 
 public class JavaDataflowJob implements DataflowJob<Foo> {
     
-    private FooRepository fooRepository = FooRepositoryFactory.getFooRepository();
+    private final FooRepository fooRepository = FooRepositoryFactory.getFooRepository();
     
     @Override
     public List<Foo> fetchData(final ShardingContext shardingContext) {

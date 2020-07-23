@@ -17,16 +17,15 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.producer;
 
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.ready.ReadyService;
-import org.apache.shardingsphere.elasticjob.cloud.exception.JobSystemException;
 import lombok.Setter;
+import org.apache.shardingsphere.elasticjob.cloud.config.pojo.CloudJobConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.ready.ReadyService;
+import org.apache.shardingsphere.elasticjob.infra.exception.JobSystemException;
 import org.quartz.CronScheduleBuilder;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
-import org.quartz.JobExecutionException;
 import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
@@ -86,10 +85,10 @@ final class TransientProducerScheduler {
     }
     
     // TODO Concurrency optimization
-    synchronized void register(final CloudJobConfiguration jobConfig) {
-        String cron = jobConfig.getTypeConfig().getCoreConfig().getCron();
+    synchronized void register(final CloudJobConfigurationPOJO cloudJobConfig) {
+        String cron = cloudJobConfig.getCron();
         JobKey jobKey = buildJobKey(cron);
-        repository.put(jobKey, jobConfig.getJobName());
+        repository.put(jobKey, cloudJobConfig.getJobName());
         try {
             if (!scheduler.checkExists(jobKey)) {
                 scheduler.scheduleJob(buildJobDetail(jobKey), buildTrigger(jobKey.getName()));
@@ -110,9 +109,9 @@ final class TransientProducerScheduler {
         return TriggerBuilder.newTrigger().withIdentity(cron).withSchedule(CronScheduleBuilder.cronSchedule(cron).withMisfireHandlingInstructionDoNothing()).build();
     }
     
-    synchronized void deregister(final CloudJobConfiguration jobConfig) {
-        repository.remove(jobConfig.getJobName());
-        String cron = jobConfig.getTypeConfig().getCoreConfig().getCron();
+    synchronized void deregister(final CloudJobConfigurationPOJO cloudJobConfig) {
+        repository.remove(cloudJobConfig.getJobName());
+        String cron = cloudJobConfig.getCron();
         if (!repository.containsKey(buildJobKey(cron))) {
             try {
                 scheduler.unscheduleJob(TriggerKey.triggerKey(cron));
@@ -145,7 +144,7 @@ final class TransientProducerScheduler {
         private ReadyService readyService;
         
         @Override
-        public void execute(final JobExecutionContext context) throws JobExecutionException {
+        public void execute(final JobExecutionContext context) {
             List<String> jobNames = repository.get(context.getJobDetail().getKey());
             for (String each : jobNames) {
                 readyService.addTransient(each);

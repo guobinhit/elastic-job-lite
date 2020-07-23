@@ -17,15 +17,15 @@
 
 package org.apache.shardingsphere.elasticjob.lite.internal.config;
 
-import org.apache.shardingsphere.elasticjob.lite.api.job.ElasticJob;
-import org.apache.shardingsphere.elasticjob.lite.api.job.JobConfiguration;
-import org.apache.shardingsphere.elasticjob.lite.exception.JobConfigurationException;
-import org.apache.shardingsphere.elasticjob.lite.exception.JobExecutionEnvironmentException;
+import org.apache.shardingsphere.elasticjob.api.ElasticJob;
+import org.apache.shardingsphere.elasticjob.api.JobConfiguration;
+import org.apache.shardingsphere.elasticjob.infra.exception.JobConfigurationException;
+import org.apache.shardingsphere.elasticjob.infra.exception.JobExecutionEnvironmentException;
 import org.apache.shardingsphere.elasticjob.lite.fixture.LiteYamlConstants;
-import org.apache.shardingsphere.elasticjob.lite.internal.config.yaml.YamlJobConfiguration;
+import org.apache.shardingsphere.elasticjob.infra.pojo.JobConfigurationPOJO;
 import org.apache.shardingsphere.elasticjob.lite.internal.storage.JobNodeStorage;
 import org.apache.shardingsphere.elasticjob.lite.util.ReflectionUtils;
-import org.apache.shardingsphere.elasticjob.lite.util.yaml.YamlEngine;
+import org.apache.shardingsphere.elasticjob.infra.yaml.YamlEngine;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -95,7 +95,7 @@ public final class ConfigurationServiceTest {
     public void assertSetUpJobConfigurationNewJobConfiguration() {
         JobConfiguration jobConfig = JobConfiguration.newBuilder("test_job", 3).cron("0/1 * * * * ?").build();
         assertThat(configService.setUpJobConfiguration(ElasticJob.class.getName(), jobConfig), is(jobConfig));
-        verify(jobNodeStorage).replaceJobNode("config", YamlEngine.marshal(YamlJobConfiguration.fromJobConfiguration(jobConfig)));
+        verify(jobNodeStorage).replaceJobNode("config", YamlEngine.marshal(JobConfigurationPOJO.fromJobConfiguration(jobConfig)));
     }
     
     @Test
@@ -103,14 +103,14 @@ public final class ConfigurationServiceTest {
         when(jobNodeStorage.isJobNodeExisted(ConfigurationNode.ROOT)).thenReturn(true);
         JobConfiguration jobConfig = JobConfiguration.newBuilder("test_job", 3).cron("0/1 * * * * ?").overwrite(true).build();
         assertThat(configService.setUpJobConfiguration(ElasticJob.class.getName(), jobConfig), is(jobConfig));
-        verify(jobNodeStorage).replaceJobNode("config", YamlEngine.marshal(YamlJobConfiguration.fromJobConfiguration(jobConfig)));
+        verify(jobNodeStorage).replaceJobNode("config", YamlEngine.marshal(JobConfigurationPOJO.fromJobConfiguration(jobConfig)));
     }
     
     @Test
     public void assertSetUpJobConfigurationExistedJobConfigurationAndNotOverwrite() {
         when(jobNodeStorage.isJobNodeExisted(ConfigurationNode.ROOT)).thenReturn(true);
         when(jobNodeStorage.getJobNodeDataDirectly(ConfigurationNode.ROOT)).thenReturn(
-                YamlEngine.marshal(YamlJobConfiguration.fromJobConfiguration(JobConfiguration.newBuilder("test_job", 3).cron("0/1 * * * * ?").build())));
+                YamlEngine.marshal(JobConfigurationPOJO.fromJobConfiguration(JobConfiguration.newBuilder("test_job", 3).cron("0/1 * * * * ?").build())));
         JobConfiguration jobConfig = JobConfiguration.newBuilder("test_job", 3).cron("0/1 * * * * ?").overwrite(false).build();
         JobConfiguration actual = configService.setUpJobConfiguration(ElasticJob.class.getName(), jobConfig);
         assertThat(actual, not(jobConfig));

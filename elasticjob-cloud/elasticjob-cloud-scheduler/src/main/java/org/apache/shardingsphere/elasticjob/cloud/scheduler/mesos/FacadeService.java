@@ -17,33 +17,33 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.mesos;
 
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app.CloudAppConfigurationService;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.disable.app.DisableAppService;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.disable.job.DisableJobService;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.running.RunningService;
-import org.apache.shardingsphere.elasticjob.cloud.context.ExecutionType;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app.CloudAppConfiguration;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfigurationService;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobExecutionType;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.context.JobContext;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.failover.FailoverService;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.failover.FailoverTaskInfo;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.ready.ReadyService;
-import org.apache.shardingsphere.elasticjob.cloud.context.TaskContext;
-import org.apache.shardingsphere.elasticjob.cloud.reg.base.CoordinatorRegistryCenter;
-import com.google.common.base.Function;
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import lombok.extern.slf4j.Slf4j;
-import org.codehaus.jettison.json.JSONException;
-
+import com.google.gson.JsonParseException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.shardingsphere.elasticjob.cloud.config.CloudJobExecutionType;
+import org.apache.shardingsphere.elasticjob.cloud.config.pojo.CloudJobConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app.CloudAppConfigurationService;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app.pojo.CloudAppConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfigurationService;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.context.JobContext;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.mesos.MesosStateService.ExecutorStateInfo;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.disable.app.DisableAppService;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.disable.job.DisableJobService;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.failover.FailoverService;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.failover.FailoverTaskInfo;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.ready.ReadyService;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.running.RunningService;
+import org.apache.shardingsphere.elasticjob.infra.context.ExecutionType;
+import org.apache.shardingsphere.elasticjob.infra.context.TaskContext;
+import org.apache.shardingsphere.elasticjob.infra.context.TaskContext.MetaInfo;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
 
 /**
  * Mesos facade service.
@@ -88,7 +88,7 @@ public final class FacadeService {
     
     /**
      * Get eligible job.
-     * 
+     *
      * @return collection of eligible job context
      */
     public Collection<JobContext> getEligibleJobContext() {
@@ -102,7 +102,7 @@ public final class FacadeService {
     
     /**
      * Remove launched task from queue.
-     * 
+     *
      * @param taskContexts task running contexts
      */
     public void removeLaunchTasksFromQueue(final List<TaskContext> taskContexts) {
@@ -120,13 +120,7 @@ public final class FacadeService {
                     break;
             }
         }
-        failoverService.remove(Lists.transform(failoverTaskContexts, new Function<TaskContext, TaskContext.MetaInfo>() {
-            
-            @Override
-            public TaskContext.MetaInfo apply(final TaskContext input) {
-                return input.getMetaInfo();
-            }
-        }));
+        failoverService.remove(failoverTaskContexts.stream().map(TaskContext::getMetaInfo).collect(Collectors.toList()));
         readyService.remove(readyJobNames);
     }
     
@@ -141,7 +135,7 @@ public final class FacadeService {
     
     /**
      * Update daemon task status.
-     * 
+     *
      * @param taskContext task running context
      * @param isIdle set to idle or not
      */
@@ -160,25 +154,25 @@ public final class FacadeService {
     
     /**
      * Record task to failover queue.
-     * 
+     *
      * @param taskContext task running context
      */
     public void recordFailoverTask(final TaskContext taskContext) {
-        Optional<CloudJobConfiguration> jobConfigOptional = jobConfigService.load(taskContext.getMetaInfo().getJobName());
-        if (!jobConfigOptional.isPresent()) {
+        Optional<CloudJobConfigurationPOJO> cloudJobConfigOptional = jobConfigService.load(taskContext.getMetaInfo().getJobName());
+        if (!cloudJobConfigOptional.isPresent()) {
             return;
         }
-        if (isDisable(jobConfigOptional.get())) {
+        if (isDisable(cloudJobConfigOptional.get())) {
             return;
         }
-        CloudJobConfiguration jobConfig = jobConfigOptional.get();
-        if (jobConfig.getTypeConfig().getCoreConfig().isFailover() || CloudJobExecutionType.DAEMON == jobConfig.getJobExecutionType()) {
+        CloudJobConfigurationPOJO cloudJobConfig = cloudJobConfigOptional.get();
+        if (cloudJobConfig.isFailover() || CloudJobExecutionType.DAEMON == cloudJobConfig.getJobExecutionType()) {
             failoverService.add(taskContext);
         }
     }
     
-    private boolean isDisable(final CloudJobConfiguration jobConfiguration) {
-        return disableAppService.isDisabled(jobConfiguration.getAppName()) || disableJobService.isDisabled(jobConfiguration.getJobName());
+    private boolean isDisable(final CloudJobConfigurationPOJO cloudJobConfig) {
+        return disableAppService.isDisabled(cloudJobConfig.getAppName()) || disableJobService.isDisabled(cloudJobConfig.getJobName());
     }
     
     /**
@@ -196,7 +190,7 @@ public final class FacadeService {
      * @param jobName job name
      * @return cloud job config
      */
-    public Optional<CloudJobConfiguration> load(final String jobName) {
+    public Optional<CloudJobConfigurationPOJO> load(final String jobName) {
         return jobConfigService.load(jobName);
     }
     
@@ -206,7 +200,7 @@ public final class FacadeService {
      * @param appName app name
      * @return cloud app config
      */
-    public Optional<CloudAppConfiguration> loadAppConfig(final String appName) {
+    public Optional<CloudAppConfigurationPOJO> loadAppConfig(final String appName) {
         return appConfigService.load(appName);
     }
     
@@ -216,7 +210,7 @@ public final class FacadeService {
      * @param metaInfo task meta info
      * @return failover task id
      */
-    public Optional<String> getFailoverTaskId(final TaskContext.MetaInfo metaInfo) {
+    public Optional<String> getFailoverTaskId(final MetaInfo metaInfo) {
         return failoverService.getTaskId(metaInfo);
     }
     
@@ -226,11 +220,11 @@ public final class FacadeService {
      * @param jobName job name
      */
     public void addDaemonJobToReadyQueue(final String jobName) {
-        Optional<CloudJobConfiguration> jobConfigOptional = jobConfigService.load(jobName);
-        if (!jobConfigOptional.isPresent()) {
+        Optional<CloudJobConfigurationPOJO> cloudJobConfig = jobConfigService.load(jobName);
+        if (!cloudJobConfig.isPresent()) {
             return;
         }
-        if (isDisable(jobConfigOptional.get())) {
+        if (isDisable(cloudJobConfig.get())) {
             return;
         }
         readyService.addDaemon(jobName);
@@ -296,12 +290,12 @@ public final class FacadeService {
     
     /**
      * Determine whether the job is disable or not.
-     * 
+     *
      * @param jobName job name
      * @return true is disabled, otherwise not
      */
     public boolean isJobDisabled(final String jobName) {
-        Optional<CloudJobConfiguration> jobConfiguration = jobConfigService.load(jobName);
+        Optional<CloudJobConfigurationPOJO> jobConfiguration = jobConfigService.load(jobName);
         return !jobConfiguration.isPresent() || disableAppService.isDisabled(jobConfiguration.get().getAppName()) || disableJobService.isDisabled(jobName);
     }
     
@@ -325,11 +319,11 @@ public final class FacadeService {
     
     /**
      * Get all running executor info.
-     * 
+     *
      * @return collection of executor info
-     * @throws JSONException json exception
+     * @throws JsonParseException parse json exception
      */
-    public Collection<MesosStateService.ExecutorStateInfo> loadExecutorInfo() throws JSONException {
+    public Collection<ExecutorStateInfo> loadExecutorInfo() throws JsonParseException {
         return mesosStateService.executors();
     }
     

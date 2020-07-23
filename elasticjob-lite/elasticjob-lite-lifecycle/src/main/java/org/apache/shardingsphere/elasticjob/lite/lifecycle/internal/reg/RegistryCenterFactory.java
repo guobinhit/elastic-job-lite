@@ -24,9 +24,9 @@ import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import org.apache.shardingsphere.elasticjob.lite.reg.base.CoordinatorRegistryCenter;
-import org.apache.shardingsphere.elasticjob.lite.reg.zookeeper.ZookeeperConfiguration;
-import org.apache.shardingsphere.elasticjob.lite.reg.zookeeper.ZookeeperRegistryCenter;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
+import org.apache.shardingsphere.elasticjob.reg.zookeeper.ZookeeperConfiguration;
+import org.apache.shardingsphere.elasticjob.reg.zookeeper.ZookeeperRegistryCenter;
 
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -47,7 +47,7 @@ public final class RegistryCenterFactory {
      * @return registry center
      */
     public static CoordinatorRegistryCenter createCoordinatorRegistryCenter(final String connectString, final String namespace, final String digest) {
-        Hasher hasher = Hashing.md5().newHasher().putString(connectString, Charsets.UTF_8).putString(namespace, Charsets.UTF_8);
+        Hasher hasher = Hashing.sha256().newHasher().putString(connectString, Charsets.UTF_8).putString(namespace, Charsets.UTF_8);
         if (!Strings.isNullOrEmpty(digest)) {
             hasher.putString(digest, Charsets.UTF_8);
         }

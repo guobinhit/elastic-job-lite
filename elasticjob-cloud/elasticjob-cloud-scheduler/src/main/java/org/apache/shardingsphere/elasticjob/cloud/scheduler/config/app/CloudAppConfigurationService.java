@@ -17,14 +17,17 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app;
 
-import org.apache.shardingsphere.elasticjob.cloud.reg.base.CoordinatorRegistryCenter;
-import com.google.common.base.Optional;
+import com.google.common.base.Strings;
 import lombok.RequiredArgsConstructor;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app.pojo.CloudAppConfigurationPOJO;
+import org.apache.shardingsphere.elasticjob.infra.yaml.YamlEngine;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
 
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Cloud app configuration service.
@@ -39,8 +42,8 @@ public final class CloudAppConfigurationService {
      *
      * @param appConfig cloud app configuration
      */
-    public void add(final CloudAppConfiguration appConfig) {
-        regCenter.persist(CloudAppConfigurationNode.getRootNodePath(appConfig.getAppName()), CloudAppConfigurationGsonFactory.toJson(appConfig));
+    public void add(final CloudAppConfigurationPOJO appConfig) {
+        regCenter.persist(CloudAppConfigurationNode.getRootNodePath(appConfig.getAppName()), YamlEngine.marshal(appConfig));
     }
     
     /**
@@ -48,8 +51,8 @@ public final class CloudAppConfigurationService {
      *
      * @param appConfig cloud app configuration
      */
-    public void update(final CloudAppConfiguration appConfig) {
-        regCenter.update(CloudAppConfigurationNode.getRootNodePath(appConfig.getAppName()), CloudAppConfigurationGsonFactory.toJson(appConfig));
+    public void update(final CloudAppConfigurationPOJO appConfig) {
+        regCenter.update(CloudAppConfigurationNode.getRootNodePath(appConfig.getAppName()), YamlEngine.marshal(appConfig));
     }
     
     /**
@@ -58,8 +61,9 @@ public final class CloudAppConfigurationService {
      * @param appName application name
      * @return cloud app configuration
      */
-    public Optional<CloudAppConfiguration> load(final String appName) {
-        return Optional.fromNullable(CloudAppConfigurationGsonFactory.fromJson(regCenter.get(CloudAppConfigurationNode.getRootNodePath(appName))));
+    public Optional<CloudAppConfigurationPOJO> load(final String appName) {
+        String configContent = regCenter.get(CloudAppConfigurationNode.getRootNodePath(appName));
+        return Strings.isNullOrEmpty(configContent) ? Optional.empty() : Optional.of(YamlEngine.unmarshal(configContent, CloudAppConfigurationPOJO.class));
     }
     
     /**
@@ -67,17 +71,15 @@ public final class CloudAppConfigurationService {
      *
      * @return collection of the registered cloud app configuration
      */
-    public Collection<CloudAppConfiguration> loadAll() {
+    public Collection<CloudAppConfigurationPOJO> loadAll() {
         if (!regCenter.isExisted(CloudAppConfigurationNode.ROOT)) {
             return Collections.emptyList();
         }
         List<String> appNames = regCenter.getChildrenKeys(CloudAppConfigurationNode.ROOT);
-        Collection<CloudAppConfiguration> result = new ArrayList<>(appNames.size());
+        Collection<CloudAppConfigurationPOJO> result = new ArrayList<>(appNames.size());
         for (String each : appNames) {
-            Optional<CloudAppConfiguration> config = load(each);
-            if (config.isPresent()) {
-                result.add(config.get());
-            }
+            Optional<CloudAppConfigurationPOJO> config = load(each);
+            config.ifPresent(result::add);
         }
         return result;
     }

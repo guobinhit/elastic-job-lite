@@ -17,22 +17,23 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.context;
 
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfiguration;
+import org.apache.shardingsphere.elasticjob.infra.context.ExecutionType;
+import org.apache.shardingsphere.elasticjob.cloud.config.CloudJobConfiguration;
 import org.apache.shardingsphere.elasticjob.cloud.scheduler.fixture.CloudJobConfigurationBuilder;
-import org.apache.shardingsphere.elasticjob.cloud.context.ExecutionType;
-import org.hamcrest.core.Is;
-import org.junit.Assert;
 import org.junit.Test;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertThat;
 
 public final class JobContextTest {
     
     @Test
     public void assertFrom() {
-        CloudJobConfiguration jobConfig = CloudJobConfigurationBuilder.createCloudJobConfiguration("test_job");
-        JobContext actual = JobContext.from(jobConfig, ExecutionType.READY);
-        Assert.assertThat(actual.getAssignedShardingItems().size(), Is.is(10));
+        CloudJobConfiguration cloudJobConfig = CloudJobConfigurationBuilder.createCloudJobConfiguration("test_job").toCloudJobConfiguration();
+        JobContext actual = JobContext.from(cloudJobConfig, ExecutionType.READY);
+        assertThat(actual.getAssignedShardingItems().size(), is(10));
         for (int i = 0; i < actual.getAssignedShardingItems().size(); i++) {
-            Assert.assertThat(actual.getAssignedShardingItems().get(i), Is.is(i));
+            assertThat(actual.getAssignedShardingItems().get(i), is(i));
         }
     }
 }

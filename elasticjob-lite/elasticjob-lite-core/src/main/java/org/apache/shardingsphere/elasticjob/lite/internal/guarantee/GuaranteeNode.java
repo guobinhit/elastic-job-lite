@@ -18,7 +18,6 @@
 package org.apache.shardingsphere.elasticjob.lite.internal.guarantee;
 
 import org.apache.shardingsphere.elasticjob.lite.internal.storage.JobNodePath;
-import com.google.common.base.Joiner;
 
 /**
  * Guarantee node.
@@ -38,11 +37,11 @@ public final class GuaranteeNode {
     }
     
     static String getStartedNode(final int shardingItem) {
-        return Joiner.on("/").join(STARTED_ROOT, shardingItem);
+        return String.join("/", STARTED_ROOT, shardingItem + "");
     }
     
     static String getCompletedNode(final int shardingItem) {
-        return Joiner.on("/").join(COMPLETED_ROOT, shardingItem);
+        return String.join("/", COMPLETED_ROOT, shardingItem + "");
     }
     
     boolean isStartedRootNode(final String path) {

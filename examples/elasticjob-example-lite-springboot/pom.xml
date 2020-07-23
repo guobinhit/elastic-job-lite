@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.shardingsphere.elasticjob</groupId>
         <artifactId>elasticjob-example</artifactId>
-        <version>3.0.0.M1-SNAPSHOT</version>
+        <version>3.0.0-alpha-SNAPSHOT</version>
     </parent>
     <artifactId>elasticjob-example-lite-springboot</artifactId>
     <name>${project.artifactId}</name>
@@ -46,14 +46,8 @@
     <dependencies>
         <dependency>
             <groupId>org.apache.shardingsphere.elasticjob</groupId>
-            <artifactId>elasticjob-example-jobs</artifactId>
-            <version>${project.parent.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>com.zaxxer</groupId>
-                    <artifactId>*</artifactId>
-                </exclusion>
-            </exclusions>
+            <artifactId>elasticjob-lite-spring-boot-starter</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.shardingsphere.elasticjob</groupId>

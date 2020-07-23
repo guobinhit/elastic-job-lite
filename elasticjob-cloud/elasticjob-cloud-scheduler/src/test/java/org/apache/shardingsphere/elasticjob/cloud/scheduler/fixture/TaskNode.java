@@ -17,30 +17,31 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler.fixture;
 
-import org.apache.shardingsphere.elasticjob.cloud.context.ExecutionType;
-import com.google.common.base.Joiner;
-import org.apache.shardingsphere.elasticjob.cloud.context.TaskContext;
 import lombok.Builder;
+import org.apache.shardingsphere.elasticjob.infra.context.ExecutionType;
+import org.apache.shardingsphere.elasticjob.infra.context.TaskContext.MetaInfo;
 
 @Builder
 public final class TaskNode {
     
-    private String jobName;
+    private static final String DELIMITER = "@-@";
     
-    private int shardingItem;
+    private final String jobName;
     
-    private ExecutionType type;
+    private final int shardingItem;
     
-    private String slaveId;
+    private final ExecutionType type;
     
-    private String uuid;
-
+    private final String slaveId;
+    
+    private final String uuid;
+    
     /**
      * Get task node path.
      * @return task node path
      */
     public String getTaskNodePath() {
-        return Joiner.on("@-@").join(null == jobName ? "test_job" : jobName, shardingItem);
+        return String.join(DELIMITER, null == jobName ? "test_job" : jobName, "" + shardingItem);
     }
 
     /**
@@ -48,14 +49,14 @@ public final class TaskNode {
      * @return task node value
      */
     public String getTaskNodeValue() {
-        return Joiner.on("@-@").join(getTaskNodePath(), null == type ? ExecutionType.READY : type, null == slaveId ? "slave-S0" : slaveId, null == uuid ? "0" : uuid);
+        return String.join(DELIMITER, getTaskNodePath(), null == type ? ExecutionType.READY.toString() : type.toString(), null == slaveId ? "slave-S0" : slaveId, null == uuid ? "0" : uuid);
     }
 
     /**
      * Get task meta info.
      * @return meta info
      */
-    public TaskContext.MetaInfo getMetaInfo() {
-        return TaskContext.MetaInfo.from(Joiner.on("@-@").join("test_job", 0));
+    public MetaInfo getMetaInfo() {
+        return MetaInfo.from(String.join(DELIMITER, "test_job", "0"));
     }
 }

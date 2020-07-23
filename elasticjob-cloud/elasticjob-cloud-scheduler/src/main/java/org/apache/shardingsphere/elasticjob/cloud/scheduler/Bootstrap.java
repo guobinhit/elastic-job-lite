@@ -17,16 +17,16 @@
 
 package org.apache.shardingsphere.elasticjob.cloud.scheduler;
 
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.ha.HANode;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.env.BootstrapEnvironment;
-import org.apache.shardingsphere.elasticjob.cloud.scheduler.ha.SchedulerElectionCandidate;
-import org.apache.shardingsphere.elasticjob.cloud.reg.base.CoordinatorRegistryCenter;
-import org.apache.shardingsphere.elasticjob.cloud.reg.zookeeper.ZookeeperElectionService;
-import org.apache.shardingsphere.elasticjob.cloud.reg.zookeeper.ZookeeperRegistryCenter;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.curator.framework.CuratorFramework;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.env.BootstrapEnvironment;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.ha.HANode;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.ha.SchedulerElectionCandidate;
+import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
+import org.apache.shardingsphere.elasticjob.reg.zookeeper.ZookeeperElectionService;
+import org.apache.shardingsphere.elasticjob.reg.zookeeper.ZookeeperRegistryCenter;
 
 import java.util.concurrent.CountDownLatch;
 
@@ -46,15 +46,15 @@ public final class Bootstrap {
     // CHECKSTYLE:OFF
     public static void main(final String[] args) throws InterruptedException {
         // CHECKSTYLE:ON
-        CoordinatorRegistryCenter regCenter = new ZookeeperRegistryCenter(BootstrapEnvironment.getInstance().getZookeeperConfiguration());
+        CoordinatorRegistryCenter regCenter = new ZookeeperRegistryCenter(BootstrapEnvironment.getINSTANCE().getZookeeperConfiguration());
         regCenter.init();
         final ZookeeperElectionService electionService = new ZookeeperElectionService(
-                BootstrapEnvironment.getInstance().getFrameworkHostPort(), (CuratorFramework) regCenter.getRawClient(), HANode.ELECTION_NODE, new SchedulerElectionCandidate(regCenter));
+                BootstrapEnvironment.getINSTANCE().getFrameworkHostPort(), (CuratorFramework) regCenter.getRawClient(), HANode.ELECTION_NODE, new SchedulerElectionCandidate(regCenter));
         electionService.start();
         final CountDownLatch latch = new CountDownLatch(1);
         latch.await();
         Runtime.getRuntime().addShutdownHook(new Thread("shutdown-hook") {
-        
+            
             @Override
             public void run() {
                 electionService.stop();
