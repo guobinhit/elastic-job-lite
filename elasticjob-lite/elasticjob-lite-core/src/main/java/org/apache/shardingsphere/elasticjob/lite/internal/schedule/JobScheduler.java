@@ -20,9 +20,11 @@ package org.apache.shardingsphere.elasticjob.lite.internal.schedule;
 import lombok.Getter;
 import org.apache.shardingsphere.elasticjob.api.ElasticJob;
 import org.apache.shardingsphere.elasticjob.api.JobConfiguration;
-import org.apache.shardingsphere.elasticjob.api.listener.ElasticJobListener;
+import org.apache.shardingsphere.elasticjob.executor.ElasticJobExecutor;
 import org.apache.shardingsphere.elasticjob.infra.exception.JobSystemException;
 import org.apache.shardingsphere.elasticjob.infra.handler.sharding.JobInstance;
+import org.apache.shardingsphere.elasticjob.infra.listener.ElasticJobListener;
+import org.apache.shardingsphere.elasticjob.infra.listener.ElasticJobListenerFactory;
 import org.apache.shardingsphere.elasticjob.lite.api.listener.AbstractDistributeOnceElasticJobListener;
 import org.apache.shardingsphere.elasticjob.lite.internal.guarantee.GuaranteeService;
 import org.apache.shardingsphere.elasticjob.lite.internal.setup.JobClassNameProviderFactory;
@@ -36,85 +38,74 @@ import org.quartz.SchedulerException;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.simpl.SimpleThreadPool;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.Collection;
 import java.util.Properties;
+import java.util.stream.Collectors;
 
 /**
  * Job scheduler.
  */
 public final class JobScheduler {
     
-    private static final String REG_CENTER_DATA_MAP_KEY = "regCenter";
+    private static final String JOB_EXECUTOR_DATA_MAP_KEY = "jobExecutor";
     
-    private static final String ELASTIC_JOB_DATA_MAP_KEY = "elasticJob";
-    
-    private static final String ELASTIC_JOB_TYPE_DATA_MAP_KEY = "elasticJobType";
-    
-    private static final String JOB_CONFIG_DATA_MAP_KEY = "jobConfig";
-    
-    private static final String JOB_LISTENERS_DATA_MAP_KEY = "elasticJobListeners";
-    
-    private static final String TRACING_CONFIG_DATA_MAP_KEY = "tracingConfig";
-    
+    @Getter
     private final CoordinatorRegistryCenter regCenter;
-    
-    private final ElasticJob elasticJob;
     
     private final String elasticJobType;
     
     @Getter
     private final JobConfiguration jobConfig;
     
-    private final List<ElasticJobListener> elasticJobListeners;
-    
-    private final TracingConfiguration tracingConfig;
-    
     private final SetUpFacade setUpFacade;
     
     private final SchedulerFacade schedulerFacade;
     
+    private final LiteJobFacade jobFacade;
+    
+    private final ElasticJobExecutor jobExecutor;
+    
     @Getter
     private final JobScheduleController jobScheduleController;
     
-    public JobScheduler(final CoordinatorRegistryCenter regCenter, final ElasticJob elasticJob, final JobConfiguration jobConfig, final ElasticJobListener... elasticJobListeners) {
-        this(regCenter, elasticJob, jobConfig, null, elasticJobListeners);
+    public JobScheduler(final CoordinatorRegistryCenter regCenter, final ElasticJob elasticJob, final JobConfiguration jobConfig) {
+        this(regCenter, elasticJob, jobConfig, null);
     }
     
-    public JobScheduler(final CoordinatorRegistryCenter regCenter, final ElasticJob elasticJob, final JobConfiguration jobConfig, final TracingConfiguration tracingConfig,
-                        final ElasticJobListener... elasticJobListeners) {
+    public JobScheduler(final CoordinatorRegistryCenter regCenter, final ElasticJob elasticJob, final JobConfiguration jobConfig, final TracingConfiguration<?> tracingConfig) {
         this.regCenter = regCenter;
-        this.elasticJob = elasticJob;
         elasticJobType = null;
-        this.elasticJobListeners = Arrays.asList(elasticJobListeners);
-        this.tracingConfig = tracingConfig;
-        setUpFacade = new SetUpFacade(regCenter, jobConfig.getJobName(), this.elasticJobListeners);
+        final Collection<ElasticJobListener> elasticJobListeners = jobConfig.getJobListenerTypes().stream()
+                .map(ElasticJobListenerFactory::getListener).collect(Collectors.toList());
+        setUpFacade = new SetUpFacade(regCenter, jobConfig.getJobName(), elasticJobListeners);
         schedulerFacade = new SchedulerFacade(regCenter, jobConfig.getJobName());
+        jobFacade = new LiteJobFacade(regCenter, jobConfig.getJobName(), elasticJobListeners, tracingConfig);
+        jobExecutor = null == elasticJob ? new ElasticJobExecutor(elasticJobType, jobConfig, jobFacade) : new ElasticJobExecutor(elasticJob, jobConfig, jobFacade);
         String jobClassName = JobClassNameProviderFactory.getProvider().getJobClassName(elasticJob);
         this.jobConfig = setUpFacade.setUpJobConfiguration(jobClassName, jobConfig);
-        setGuaranteeServiceForElasticJobListeners(regCenter, this.elasticJobListeners);
+        setGuaranteeServiceForElasticJobListeners(regCenter, elasticJobListeners);
         jobScheduleController = createJobScheduleController();
     }
     
-    public JobScheduler(final CoordinatorRegistryCenter regCenter, final String elasticJobType, final JobConfiguration jobConfig, final ElasticJobListener... elasticJobListeners) {
-        this(regCenter, elasticJobType, jobConfig, null, elasticJobListeners);
+    public JobScheduler(final CoordinatorRegistryCenter regCenter, final String elasticJobType, final JobConfiguration jobConfig) {
+        this(regCenter, elasticJobType, jobConfig, null);
     }
     
-    public JobScheduler(final CoordinatorRegistryCenter regCenter, final String elasticJobType, final JobConfiguration jobConfig, final TracingConfiguration tracingConfig,
-                        final ElasticJobListener... elasticJobListeners) {
+    public JobScheduler(final CoordinatorRegistryCenter regCenter, final String elasticJobType, final JobConfiguration jobConfig, final TracingConfiguration<?> tracingConfig) {
         this.regCenter = regCenter;
-        elasticJob = null;
         this.elasticJobType = elasticJobType;
-        this.elasticJobListeners = Arrays.asList(elasticJobListeners);
-        this.tracingConfig = tracingConfig;
-        setUpFacade = new SetUpFacade(regCenter, jobConfig.getJobName(), this.elasticJobListeners);
+        final Collection<ElasticJobListener> elasticJobListeners = jobConfig.getJobListenerTypes().stream()
+                .map(ElasticJobListenerFactory::getListener).collect(Collectors.toList());
+        setUpFacade = new SetUpFacade(regCenter, jobConfig.getJobName(), elasticJobListeners);
         schedulerFacade = new SchedulerFacade(regCenter, jobConfig.getJobName());
+        jobFacade = new LiteJobFacade(regCenter, jobConfig.getJobName(), elasticJobListeners, tracingConfig);
+        jobExecutor = new ElasticJobExecutor(elasticJobType, jobConfig, jobFacade);
         this.jobConfig = setUpFacade.setUpJobConfiguration(elasticJobType, jobConfig);
-        setGuaranteeServiceForElasticJobListeners(regCenter, this.elasticJobListeners);
+        setGuaranteeServiceForElasticJobListeners(regCenter, elasticJobListeners);
         jobScheduleController = createJobScheduleController();
     }
     
-    private void setGuaranteeServiceForElasticJobListeners(final CoordinatorRegistryCenter regCenter, final List<ElasticJobListener> elasticJobListeners) {
+    private void setGuaranteeServiceForElasticJobListeners(final CoordinatorRegistryCenter regCenter, final Collection<ElasticJobListener> elasticJobListeners) {
         GuaranteeService guaranteeService = new GuaranteeService(regCenter, jobConfig.getJobName());
         for (ElasticJobListener each : elasticJobListeners) {
             if (each instanceof AbstractDistributeOnceElasticJobListener) {
@@ -156,12 +147,7 @@ public final class JobScheduler {
     
     private JobDetail createJobDetail() {
         JobDetail result = JobBuilder.newJob(LiteJob.class).withIdentity(getJobConfig().getJobName()).build();
-        result.getJobDataMap().put(REG_CENTER_DATA_MAP_KEY, regCenter);
-        result.getJobDataMap().put(ELASTIC_JOB_DATA_MAP_KEY, elasticJob);
-        result.getJobDataMap().put(ELASTIC_JOB_TYPE_DATA_MAP_KEY, elasticJobType);
-        result.getJobDataMap().put(JOB_CONFIG_DATA_MAP_KEY, getJobConfig());
-        result.getJobDataMap().put(JOB_LISTENERS_DATA_MAP_KEY, elasticJobListeners);
-        result.getJobDataMap().put(TRACING_CONFIG_DATA_MAP_KEY, tracingConfig);
+        result.getJobDataMap().put(JOB_EXECUTOR_DATA_MAP_KEY, jobExecutor);
         return result;
     }
     
@@ -177,5 +163,6 @@ public final class JobScheduler {
     */
     public void shutdown() {
         schedulerFacade.shutdownInstance();
+        jobExecutor.shutdown();
     }
 }

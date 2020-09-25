@@ -23,7 +23,7 @@
     <parent>
         <groupId>org.apache.shardingsphere.elasticjob</groupId>
         <artifactId>elasticjob-example</artifactId>
-        <version>3.0.0-alpha-SNAPSHOT</version>
+        <version>3.0.0-beta-SNAPSHOT</version>
     </parent>
     <artifactId>elasticjob-example-lite-springboot</artifactId>
     <name>${project.artifactId}</name>
@@ -80,11 +80,6 @@
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
             <version>${h2.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>mysql</groupId>
-            <artifactId>mysql-connector-java</artifactId>
-            <version>${mysql.version}</version>
         </dependency>
     </dependencies>
 </project>

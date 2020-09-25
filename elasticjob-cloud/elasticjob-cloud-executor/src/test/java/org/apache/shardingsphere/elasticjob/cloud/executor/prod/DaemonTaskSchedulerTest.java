@@ -24,10 +24,10 @@ import org.apache.mesos.Protos.TaskState;
 import org.apache.mesos.Protos.TaskStatus;
 import org.apache.shardingsphere.elasticjob.api.ElasticJob;
 import org.apache.shardingsphere.elasticjob.api.JobConfiguration;
-import org.apache.shardingsphere.elasticjob.api.listener.ShardingContexts;
 import org.apache.shardingsphere.elasticjob.cloud.executor.prod.DaemonTaskScheduler.DaemonJob;
 import org.apache.shardingsphere.elasticjob.cloud.facade.CloudJobFacade;
 import org.apache.shardingsphere.elasticjob.infra.context.ExecutionType;
+import org.apache.shardingsphere.elasticjob.infra.listener.ShardingContexts;
 import org.apache.shardingsphere.elasticjob.script.props.ScriptJobProperties;
 import org.junit.Before;
 import org.junit.Test;
@@ -117,6 +117,7 @@ public final class DaemonTaskSchedulerTest {
         Field field = DaemonTaskScheduler.class.getDeclaredField("RUNNING_SCHEDULERS");
         field.setAccessible(true);
         assertTrue(((ConcurrentHashMap) field.get(scheduler)).containsKey(taskId.getValue()));
+        DaemonTaskScheduler.shutdown(taskId);
     }
     
     @Test

@@ -26,11 +26,14 @@ import org.apache.mesos.MesosSchedulerDriver;
 import org.apache.mesos.Protos;
 import org.apache.mesos.SchedulerDriver;
 import org.apache.shardingsphere.elasticjob.cloud.console.ConsoleBootstrap;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.app.CloudAppConfigurationListener;
 import org.apache.shardingsphere.elasticjob.cloud.scheduler.config.job.CloudJobConfigurationListener;
 import org.apache.shardingsphere.elasticjob.cloud.scheduler.env.BootstrapEnvironment;
 import org.apache.shardingsphere.elasticjob.cloud.scheduler.env.MesosConfiguration;
 import org.apache.shardingsphere.elasticjob.cloud.scheduler.ha.FrameworkIDService;
 import org.apache.shardingsphere.elasticjob.cloud.scheduler.producer.ProducerManager;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.disable.app.CloudAppDisableListener;
+import org.apache.shardingsphere.elasticjob.cloud.scheduler.state.disable.job.CloudJobDisableListener;
 import org.apache.shardingsphere.elasticjob.cloud.scheduler.statistics.StatisticManager;
 import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
 import org.apache.shardingsphere.elasticjob.tracing.JobEventBus;
@@ -63,6 +66,12 @@ public final class SchedulerService {
     
     private final ReconcileService reconcileService;
     
+    private final CloudJobDisableListener cloudJobDisableListener;
+    
+    private final CloudAppConfigurationListener cloudAppConfigurationListener;
+    
+    private final CloudAppDisableListener cloudAppDisableListener;
+    
     public SchedulerService(final CoordinatorRegistryCenter regCenter) {
         env = BootstrapEnvironment.getINSTANCE();
         facadeService = new FacadeService(regCenter);
@@ -72,6 +81,9 @@ public final class SchedulerService {
         schedulerDriver = getSchedulerDriver(taskScheduler, jobEventBus, new FrameworkIDService(regCenter));
         producerManager = new ProducerManager(schedulerDriver, regCenter);
         cloudJobConfigurationListener = new CloudJobConfigurationListener(regCenter, producerManager);
+        cloudJobDisableListener = new CloudJobDisableListener(regCenter, producerManager);
+        cloudAppConfigurationListener = new CloudAppConfigurationListener(regCenter, producerManager);
+        cloudAppDisableListener = new CloudAppDisableListener(regCenter, producerManager);
         taskLaunchScheduledService = new TaskLaunchScheduledService(schedulerDriver, taskScheduler, facadeService, jobEventBus);
         reconcileService = new ReconcileService(schedulerDriver, facadeService);
         consoleBootstrap = new ConsoleBootstrap(regCenter, env.getRestfulServerConfiguration(), producerManager, reconcileService);
@@ -116,6 +128,9 @@ public final class SchedulerService {
         producerManager.startup();
         statisticManager.startup();
         cloudJobConfigurationListener.start();
+        cloudAppConfigurationListener.start();
+        cloudJobDisableListener.start();
+        cloudAppDisableListener.start();
         taskLaunchScheduledService.startAsync();
         consoleBootstrap.start();
         schedulerDriver.start();
@@ -131,6 +146,9 @@ public final class SchedulerService {
         consoleBootstrap.stop();
         taskLaunchScheduledService.stopAsync();
         cloudJobConfigurationListener.stop();
+        cloudAppConfigurationListener.stop();
+        cloudJobDisableListener.stop();
+        cloudAppDisableListener.stop();
         statisticManager.shutdown();
         producerManager.shutdown();
         schedulerDriver.stop(true);

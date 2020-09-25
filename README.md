@@ -8,7 +8,7 @@ ElasticJob is a distributed scheduling solution consisting of two separate proje
 
 Through the functions of flexible scheduling, resource management and job management, 
 it creates a distributed scheduling solution suitable for Internet scenarios, 
-and provides diversified job ecosystem through open architecture design.
+and provides a diversified job ecosystem through open architecture design.
 It uses a unified job API for each project.
 Developers only need code one time and can deploy at will.
 
@@ -74,7 +74,7 @@ Uses Mesos to manage and isolate resources.
   - Support rich job type lib, such as dataflow, script, HTTP, file, big data
   - Focus business SDK, can work with Spring IOC
 
-- Admin Console
+- [Admin Console](https://github.com/apache/shardingsphere-elasticjob-ui)
   - Job administration
   - Job event trace query
   - Registry center management
@@ -87,7 +87,7 @@ Java 8 or above required.
 
 ### ZooKeeper
 
-ZooKeeper or above required. [See details](https://zookeeper.apache.org/)
+ZooKeeper 3.6.0 or above required. [See details](https://zookeeper.apache.org/)
 
 ### Mesos (ElasticJob-Cloud only)
 

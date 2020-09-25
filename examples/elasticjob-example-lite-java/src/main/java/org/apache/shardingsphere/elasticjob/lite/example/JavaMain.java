@@ -18,10 +18,13 @@
 package org.apache.shardingsphere.elasticjob.lite.example;
 
 import org.apache.commons.dbcp.BasicDataSource;
+import org.apache.shardingsphere.elasticjob.http.props.HttpJobProperties;
+import org.apache.shardingsphere.elasticjob.lite.api.bootstrap.impl.OneOffJobBootstrap;
 import org.apache.shardingsphere.elasticjob.lite.api.bootstrap.impl.ScheduleJobBootstrap;
 import org.apache.shardingsphere.elasticjob.api.JobConfiguration;
 import org.apache.shardingsphere.elasticjob.dataflow.props.DataflowJobProperties;
 import org.apache.shardingsphere.elasticjob.lite.example.job.dataflow.JavaDataflowJob;
+import org.apache.shardingsphere.elasticjob.lite.example.job.simple.JavaOccurErrorJob;
 import org.apache.shardingsphere.elasticjob.lite.example.job.simple.JavaSimpleJob;
 import org.apache.shardingsphere.elasticjob.reg.base.CoordinatorRegistryCenter;
 import org.apache.shardingsphere.elasticjob.reg.zookeeper.ZookeeperConfiguration;
@@ -61,10 +64,13 @@ public final class JavaMain {
     // CHECKSTYLE:ON
         EmbedZookeeperServer.start(EMBED_ZOOKEEPER_PORT);
         CoordinatorRegistryCenter regCenter = setUpRegistryCenter();
-        TracingConfiguration tracingConfig = new TracingConfiguration<>("RDB", setUpEventTraceDataSource());
+        TracingConfiguration<DataSource> tracingConfig = new TracingConfiguration<>("RDB", setUpEventTraceDataSource());
+        setUpHttpJob(regCenter, tracingConfig);
         setUpSimpleJob(regCenter, tracingConfig);
         setUpDataflowJob(regCenter, tracingConfig);
         setUpScriptJob(regCenter, tracingConfig);
+        setUpOneOffJob(regCenter, tracingConfig);
+        setUpOneOffJobWithDingtalk(regCenter, tracingConfig);
     }
     
     private static CoordinatorRegistryCenter setUpRegistryCenter() {
@@ -83,20 +89,38 @@ public final class JavaMain {
         return result;
     }
     
-    private static void setUpSimpleJob(final CoordinatorRegistryCenter regCenter, final TracingConfiguration tracingConfig) {
+    private static void setUpHttpJob(final CoordinatorRegistryCenter regCenter, final TracingConfiguration<DataSource> tracingConfig) {
+        new ScheduleJobBootstrap(regCenter, "HTTP", JobConfiguration.newBuilder("javaHttpJob", 3)
+                .setProperty(HttpJobProperties.URI_KEY, "https://github.com")
+                .setProperty(HttpJobProperties.METHOD_KEY, "GET")
+                .cron("0/5 * * * * ?").shardingItemParameters("0=Beijing,1=Shanghai,2=Guangzhou").build(), tracingConfig).schedule();
+        
+    }
+    
+    private static void setUpSimpleJob(final CoordinatorRegistryCenter regCenter, final TracingConfiguration<DataSource> tracingConfig) {
         new ScheduleJobBootstrap(regCenter, new JavaSimpleJob(), JobConfiguration.newBuilder("javaSimpleJob", 3)
                 .cron("0/5 * * * * ?").shardingItemParameters("0=Beijing,1=Shanghai,2=Guangzhou").build(), tracingConfig).schedule();
     }
     
-    private static void setUpDataflowJob(final CoordinatorRegistryCenter regCenter, final TracingConfiguration tracingConfig) {
+    private static void setUpDataflowJob(final CoordinatorRegistryCenter regCenter, final TracingConfiguration<DataSource> tracingConfig) {
         new ScheduleJobBootstrap(regCenter, new JavaDataflowJob(), JobConfiguration.newBuilder("javaDataflowElasticJob", 3)
                 .cron("0/5 * * * * ?").shardingItemParameters("0=Beijing,1=Shanghai,2=Guangzhou")
                 .setProperty(DataflowJobProperties.STREAM_PROCESS_KEY, Boolean.TRUE.toString()).build(), tracingConfig).schedule();
     }
+
+    private static void setUpOneOffJob(final CoordinatorRegistryCenter regCenter, final TracingConfiguration<DataSource> tracingConfig) {
+        new OneOffJobBootstrap(regCenter, new JavaSimpleJob(), JobConfiguration.newBuilder("javaOneOffSimpleJob", 3)
+                .shardingItemParameters("0=Beijing,1=Shanghai,2=Guangzhou").build(), tracingConfig).execute();
+    }
     
-    private static void setUpScriptJob(final CoordinatorRegistryCenter regCenter, final TracingConfiguration tracingConfig) throws IOException {
+    private static void setUpScriptJob(final CoordinatorRegistryCenter regCenter, final TracingConfiguration<DataSource> tracingConfig) throws IOException {
         new ScheduleJobBootstrap(regCenter, "SCRIPT", JobConfiguration.newBuilder("scriptElasticJob", 3)
                 .cron("0/5 * * * * ?").setProperty(ScriptJobProperties.SCRIPT_KEY, buildScriptCommandLine()).build(), tracingConfig).schedule();
+    }
+    
+    private static void setUpOneOffJobWithDingtalk(final CoordinatorRegistryCenter regCenter, final TracingConfiguration<DataSource> tracingConfig) {
+        new OneOffJobBootstrap(regCenter, new JavaOccurErrorJob(), JobConfiguration.newBuilder("javaOccurErrorJob", 3)
+                .shardingItemParameters("0=Beijing,1=Shanghai,2=Guangzhou").jobErrorHandlerType("DINGTALK").build(), tracingConfig).execute();
     }
     
     private static String buildScriptCommandLine() throws IOException {

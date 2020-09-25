@@ -20,15 +20,15 @@ package org.apache.shardingsphere.elasticjob.executor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.shardingsphere.elasticjob.api.ElasticJob;
 import org.apache.shardingsphere.elasticjob.api.JobConfiguration;
-import org.apache.shardingsphere.elasticjob.api.listener.ShardingContexts;
+import org.apache.shardingsphere.elasticjob.error.handler.JobErrorHandler;
+import org.apache.shardingsphere.elasticjob.error.handler.JobErrorHandlerFactory;
 import org.apache.shardingsphere.elasticjob.infra.env.IpUtils;
 import org.apache.shardingsphere.elasticjob.infra.exception.ExceptionUtils;
 import org.apache.shardingsphere.elasticjob.infra.exception.JobExecutionEnvironmentException;
-import org.apache.shardingsphere.elasticjob.infra.handler.error.JobErrorHandler;
-import org.apache.shardingsphere.elasticjob.infra.handler.error.JobErrorHandlerFactory;
 import org.apache.shardingsphere.elasticjob.infra.handler.threadpool.JobExecutorServiceHandlerFactory;
 import org.apache.shardingsphere.elasticjob.executor.item.JobItemExecutor;
 import org.apache.shardingsphere.elasticjob.executor.item.JobItemExecutorFactory;
+import org.apache.shardingsphere.elasticjob.infra.listener.ShardingContexts;
 import org.apache.shardingsphere.elasticjob.tracing.event.JobExecutionEvent;
 import org.apache.shardingsphere.elasticjob.tracing.event.JobExecutionEvent.ExecutionSource;
 import org.apache.shardingsphere.elasticjob.tracing.event.JobStatusTraceEvent.State;
@@ -184,5 +184,12 @@ public final class ElasticJobExecutor {
             itemErrorMessages.put(item, ExceptionUtils.transform(cause));
             jobErrorHandler.handleException(jobConfig.getJobName(), cause);
         }
+    }
+    
+    /**
+     * Shutdown executor.
+     */
+    public void shutdown() {
+        executorService.shutdown();
     }
 }
